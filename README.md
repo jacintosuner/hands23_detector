@@ -110,5 +110,3 @@ If this work is helpful in your research, please cite:
   year={2023}
 }
 ```
-
-## Acknowledgement
