@@ -1,0 +1,4 @@
+model_weights/model_hands23.pth
+__pycache__/
+*.pyc
+*.pyo

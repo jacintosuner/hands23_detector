@@ -254,7 +254,7 @@ def main():
     parser.add_argument("--obj_rela", type=float, default=0.7)
   
     parser.add_argument("--model_weights", default=f"./model_weights/model_hands23.pth")
-    parser.add_argument("--data_dir", default = 'demo_example/example_images')
+    parser.add_argument("--data_dir", default = 'demo_example/example_images/')
     parser.add_argument("--save_dir", default="results/demo")
     parser.add_argument("--save_img", type=bool,  default = True)
     parser.add_argument("--image_list_txt", default=None)
@@ -263,6 +263,7 @@ def main():
     
     # set configuration
     cfg = set_cfg(args)
+    
     predictor = DefaultPredictor(cfg)
     
     # inputs
@@ -312,7 +313,7 @@ def main():
                 hands.save_masks(save_dir, im, test_img.split('/')[-1])
 
             img['predictions'].append(hands.get_json())
-            
+        
         # vis and save
         if save_img:
             im = vis_per_image(im, img['predictions'], im_name+'.png', save_mask_dir, use_simple=False)
