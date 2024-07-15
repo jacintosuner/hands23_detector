@@ -97,7 +97,68 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python trainval.py --num-gpus 8 --config-fi
 ```
 Under the `data_root` directory, there should be an `annotations` directory which contains `train.json` and `val.json` in COCO format for training and evaluation.
 
+## Evaluation
+### Detection and Segmentation APs
+```
+CUDA_VISIBLE_DEVICES=0 python eval.py --num-gpus 1 --config_file faster_rcnn_X_101_32x8d_FPN_3x_Hands23.yaml --model_weights path/to/model.pth
+```
+Similar to demo script `demo.py`, the evaluation script `eval.py` also supports adjustments on thresholds plus other file path flags.
 
+#### Available Flags
+
+| Flag | Description | Default Value |
+|------|-------------|---------------|
+| `--data_dir` | Path to the evaluation dataset in COCO format(str) | `./data/hands23_data_coco` |
+| `--save_dir` | Path to directory where evaluation results will be saved(str) | `result` |
+| `--save_result` | Whether to save numeric evaluation results(bool)  | `True` |
+| `--image_root` | Path to the image for evaluation  | `./data/hands23_data/allMergedBlur` |
+
+The per-category (totally 3 categories: hand, firstobject, secondobject) bounding box and segmentation evaluation results can be saved as a JSON file at `save_dir` (default: results/evaluation/result.json). The JSON file is in the format as:
+
+
+```json
+{
+  "bbox": {
+    "AP-50": {
+      "hand": "float",
+      "firstobject": "float",
+      "secondobject": "float"
+    },
+    "mAP": {
+      "hand": "float",
+      "firstobject": "float",
+      "secondobject": "float"
+    }
+  },
+  "segm": {
+    "AP-50": {
+      "hand": "float",
+      "firstobject":"float",
+      "secondobject": "float"
+    },
+    "mAP": {
+      "hand": "float",
+      "firstobject": "float",
+      "secondobject": "float"
+    }
+  }
+}
+```
+
+### Classification Accuracies
+To get the classification accuracies for states (hand side, contact, touch, grasp), the evaluation involves 2 steps: generate `result.json` using `demo.py` and calculate accuracies.
+
+#### Step1 - Generate result.json
+
+```
+python demo.py --save_img=False
+```
+
+#### Step2 - Calculate state accuracy
+
+```
+python analyzeAcc.py --label_src [source of .txt files] --output_src [directory of saved result.json]
+```
 
 ## Citation
 

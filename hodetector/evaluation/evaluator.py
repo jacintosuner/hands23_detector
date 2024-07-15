@@ -1,8 +1,9 @@
-from pycocotools.cocoeval import COCOeval
+from pycocotools.cocoeval import COCOeval, Params
 from detectron2 import _C
 from detectron2.utils.logger import create_small_table
 from detectron2.utils.file_io import PathManager
 from detectron2.evaluation import COCOEvaluator
+from detectron2.evaluation.coco_evaluation import _evaluate_predictions_on_coco
 import logging
 import os
 import numpy as np
@@ -22,185 +23,6 @@ except ImportError:
 
 results_to_save = {}
 save_dir = ''
-
-
-class Hands23_COCOEVAL(COCOeval_opt):
-    '''
-    derived from detectron2 COCOeval_opt
-    original code at: https://detectron2.readthedocs.io/en/latest/_modules/detectron2/evaluation/coco_evaluation.html#COCOEvaluator
-    '''
-
-    def __init__(self, cocoGt=None, cocoDt=None, iouType='segm'):
-        '''
-        Initialize CocoEval using coco APIs for gt and dt
-        :param cocoGt: coco object with ground truth annotations
-        :param cocoDt: coco object with detection results
-        :return: None
-        '''
-        if not iouType:
-            print('iouType not specified. use default iouType segm')
-        self.cocoGt = cocoGt              # ground truth COCO API
-        self.cocoDt = cocoDt              # detections COCO API
-        # per-image per-category evaluation results [KxAxI] elements
-        self.evalImgs = defaultdict(list)
-        self.eval = {}                  # accumulated evaluation results
-        self._gts = defaultdict(list)       # gt for evaluation
-        self._dts = defaultdict(list)       # dt for evaluation
-        self.params = Hands23_Params(iouType=iouType)  # parameters
-        self._paramsEval = {}               # parameters for evaluation
-        self.stats = []                     # result summarization
-        self.ious = {}                      # ious between all gts and dts
-        if not cocoGt is None:
-            self.params.imgIds = sorted(cocoGt.getImgIds())
-            self.params.catIds = sorted(cocoGt.getCatIds())
-
-
-class Hands23_Params:
-    '''
-    Params for coco evaluation api
-    '''
-
-    def setDetParams(self):
-        self.imgIds = []
-        self.catIds = []
-        # np.arange causes trouble.  the data point on arange is slightly larger than the true value
-        self.iouThrs = np.linspace(.5, 0.95, int(
-            np.round((0.95 - .5) / .05)) + 1, endpoint=True)
-        self.recThrs = np.linspace(.0, 1.00, int(
-            np.round((1.00 - .0) / .01)) + 1, endpoint=True)
-        self.maxDets = [1, 10, 100]
-        self.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, 32 ** 2],
-                        [32 ** 2, 96 ** 2], [96 ** 2, 1e5 ** 2]]
-        self.areaRngLbl = ['all', 'small', 'medium', 'large']
-        self.useCats = 1
-
-    def setKpParams(self):
-        self.imgIds = []
-        self.catIds = []
-        # np.arange causes trouble.  the data point on arange is slightly larger than the true value
-        self.iouThrs = np.linspace(.5, 0.95, int(
-            np.round((0.95 - .5) / .05)) + 1, endpoint=True)
-        self.recThrs = np.linspace(.0, 1.00, int(
-            np.round((1.00 - .0) / .01)) + 1, endpoint=True)
-        self.maxDets = [20]
-        self.areaRng = [[0 ** 2, 1e5 ** 2],
-                        [32 ** 2, 96 ** 2], [96 ** 2, 1e5 ** 2]]
-        self.areaRngLbl = ['all', 'medium', 'large']
-        self.useCats = 1
-        self.kpt_oks_sigmas = np.array(
-            [.26, .25, .25, .35, .35, .79, .79, .72, .72, .62, .62, 1.07, 1.07, .87, .87, .89, .89])/10.0
-
-    def __init__(self, iouType='segm'):
-        if iouType == 'segm' or iouType == 'bbox':
-            self.setDetParams()
-        elif iouType == 'keypoints':
-            self.setKpParams()
-        else:
-            raise Exception('iouType not supported')
-        self.iouType = iouType
-        # useSegm is deprecated
-        self.useSegm = None
-
-
-class COCOevalMaxDets(COCOeval):
-    """
-    Modified version of COCOeval for evaluating AP with a custom
-    maxDets (by default for COCO, maxDets is 100)
-    """
-
-    def __init__(self, cocoGt=None, cocoDt=None, iouType='segm'):
-        '''
-        Initialize CocoEval using coco APIs for gt and dt
-        :param cocoGt: coco object with ground truth annotations
-        :param cocoDt: coco object with detection results
-        :return: None
-        '''
-        if not iouType:
-            print('iouType not specified. use default iouType segm')
-        self.cocoGt = cocoGt              # ground truth COCO API
-        self.cocoDt = cocoDt              # detections COCO API
-        # per-image per-category evaluation results [KxAxI] elements
-        self.evalImgs = defaultdict(list)
-        self.eval = {}                  # accumulated evaluation results
-        self._gts = defaultdict(list)       # gt for evaluation
-        self._dts = defaultdict(list)       # dt for evaluation
-        self.params = Hands23_Params(iouType=iouType)  # parameters
-        self._paramsEval = {}               # parameters for evaluation
-        self.stats = []                     # result summarization
-        self.ious = {}                      # ious between all gts and dts
-        if not cocoGt is None:
-            self.params.imgIds = sorted(cocoGt.getImgIds())
-            self.params.catIds = sorted(cocoGt.getCatIds())
-
-
-def _evaluate_predictions_on_coco(
-    coco_gt,
-    coco_results,
-    iou_type,
-    kpt_oks_sigmas=None,
-    cocoeval_fn=Hands23_COCOEVAL,
-    img_ids=None,
-    max_dets_per_image=None,
-):
-    """
-    Evaluate the coco results using COCOEval API.
-    """
-    assert len(coco_results) > 0
-
-    if iou_type == "segm":
-        coco_results = copy.deepcopy(coco_results)
-        # When evaluating mask AP, if the results contain bbox, cocoapi will
-        # use the box area as the area of the instance, instead of the mask area.
-        # This leads to a different definition of small/medium/large.
-        # We remove the bbox field to let mask AP use mask area.
-        for c in coco_results:
-            c.pop("bbox", None)
-
-    coco_dt = coco_gt.loadRes(coco_results)
-    coco_eval = Hands23_COCOEVAL(coco_gt, coco_dt, iou_type)
-    #
-    # For COCO, the default max_dets_per_image is [1, 10, 100].
-    if max_dets_per_image is None:
-        max_dets_per_image = [1, 10, 100]  # Default from COCOEval
-    else:
-        assert (
-            len(max_dets_per_image) >= 3
-        ), "COCOeval requires maxDets (and max_dets_per_image) to have length at least 3"
-        # In the case that user supplies a custom input for max_dets_per_image,
-        # apply COCOevalMaxDets to evaluate AP with the custom input.
-        if max_dets_per_image[2] != 100:
-            coco_eval = COCOevalMaxDets(coco_gt, coco_dt, iou_type)
-    if iou_type != "keypoints":
-        coco_eval.params.maxDets = max_dets_per_image
-
-    if img_ids is not None:
-        coco_eval.params.imgIds = img_ids
-
-    if iou_type == "keypoints":
-        # Use the COCO default keypoint OKS sigmas unless overrides are specified
-        if kpt_oks_sigmas:
-            assert hasattr(coco_eval.params,
-                           "kpt_oks_sigmas"), "pycocotools is too old!"
-            coco_eval.params.kpt_oks_sigmas = np.array(kpt_oks_sigmas)
-        # COCOAPI requires every detection and every gt to have keypoints, so
-        # we just take the first entry from both
-        num_keypoints_dt = len(coco_results[0]["keypoints"]) // 3
-        num_keypoints_gt = len(
-            next(iter(coco_gt.anns.values()))["keypoints"]) // 3
-        num_keypoints_oks = len(coco_eval.params.kpt_oks_sigmas)
-        assert num_keypoints_oks == num_keypoints_dt == num_keypoints_gt, (
-            f"[COCOEvaluator] Prediction contain {num_keypoints_dt} keypoints. "
-            f"Ground truth contains {num_keypoints_gt} keypoints. "
-            f"The length of cfg.TEST.KEYPOINT_OKS_SIGMAS is {num_keypoints_oks}. "
-            "They have to agree with each other. For meaning of OKS, please refer to "
-            "http://cocodataset.org/#keypoints-eval."
-        )
-
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    coco_eval.summarize()
-
-    return coco_eval
 
 
 class Hands23_Evaluator(COCOEvaluator):
@@ -285,7 +107,7 @@ class Hands23_Evaluator(COCOEvaluator):
                     coco_results,
                     task,
                     kpt_oks_sigmas=self._kpt_oks_sigmas,
-                    cocoeval_fn=Hands23_COCOEVAL,  # if self._use_fast_impl else COCOeval,
+                    cocoeval_fn=COCOeval_opt,  # if self._use_fast_impl else COCOeval,
                     img_ids=img_ids,
                     max_dets_per_image=self._max_dets_per_image,
                 )

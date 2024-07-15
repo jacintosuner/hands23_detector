@@ -268,7 +268,7 @@ class hoRCNNROIHeads(StandardROIHeads):
         
 
         pred_classes = torch.tensor(pred_classes).cuda()
-        pred_classes_ = torch.tensor(pred_classes).cuda()
+        pred_classes_ = pred_classes.clone().detach().cuda()
        
 
         z_feature = self.box_pooler(features, pred_boxes)
@@ -307,7 +307,6 @@ class hoRCNNROIHeads(StandardROIHeads):
         length = len(inter_prob)
 
        
-        
         try:
 
             for i in range(length):
@@ -335,7 +334,7 @@ class hoRCNNROIHeads(StandardROIHeads):
 
         # first objects are only included for evaluation if they are associated to a hand
         # second objects are only included for evaluation if they are associated to a first object
-        idx_to_include = torch.range(start = 0, end = len(boxes)-1, dtype = int)[pred_classes==0].tolist()
+        idx_to_include = torch.arange(start = 0, end = len(boxes), dtype = int, device='cuda')[pred_classes==0].tolist()
 
 
         for i in range(len(z_feature)):
