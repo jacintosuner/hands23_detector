@@ -30,7 +30,7 @@ from datetime import datetime
 
 
 def write_error_mess(mess = ''):
-    f = open("../../../error_mess.txt", "a")
+    f = open("../../error_mess.txt", "a")
     now = datetime.now()
 
     current_time = now.strftime("%H:%M:%S")
@@ -75,7 +75,7 @@ class hoRCNNROIHeads(StandardROIHeads):
            
 
         if self.training:
-            losses = self._forward_box(features, proposals, images)
+            losses = self._forward_box(features, proposals)
             # Usually the original proposals used by the box head are used by the mask, keypoint
             # heads. But when `self.train_on_pred_boxes is True`, proposals will contain boxes
             # predicted by the box head.
@@ -134,33 +134,16 @@ class hoRCNNROIHeads(StandardROIHeads):
 
             losses.update(self._forward_mask(features_org, proposals))
 
-         
-
-            if (losses_z is None) or (torch.isnan(losses_z["loss_relation"])) or (torch.isinf(losses_z["loss_relation"])):
-                write_error_mess("z_head")
-            else:
-                losses.update(losses_z)
-
-
-            if (losses_h is None) or (torch.isnan(losses_h["loss_hand_side"])) or (torch.isinf(losses_h["loss_hand_side"])):
-                write_error_mess("h_head")
-            else:
-                losses.update(losses_h)
-
-            if (losses_t is None) or (torch.isnan(losses_t["loss_touch"]) or (torch.isinf(losses_t["loss_touch"]))):
-                write_error_mess("t_head")
-            else:
-                losses.update(losses_t)
-
-            if (losses_g is  None) or (torch.isnan(losses_g["loss_grasp"]) or (torch.isinf(losses_g["loss_grasp"]))):
-                write_error_mess("g_head")
-            else:
-                losses.update(losses_g)
+            losses.update(losses_z)
+            losses.update(losses_h)
+            losses.update(losses_t)
+            losses.update(losses_g)
 
            
             for val in losses.values():
-             
+                
                 assert torch.isnan(val)== False and torch.isfinite(val)
+               
             return losses
         else:
             
@@ -454,17 +437,17 @@ class hoRCNNROIHeads(StandardROIHeads):
         pred_h = self.h_head(z_feature[iou])
         pred_t = self.t_head(z_feature[iou])
         pred_g = self.g_head(z_feature[iou])
-        
+       
         
         assert pred_z.shape[0] == torch.flatten(PL, start_dim=0, end_dim=1).shape[0]
-        losses_inter = self.z_head.losses(pred_z, torch.flatten(PL, start_dim=0, end_dim=1))
+        losses_inter = self.z_head.losses(pred_z, torch.flatten(PL, start_dim=0, end_dim=1))  if torch.all(PL.eq(100)).item() is False else {"loss_relation": torch.tensor(0, device = PL.device)}
 
         assert pred_h.shape[0] == gt_handSide[iou].shape[0]
-        losses_side = self.h_head.losses(pred_h, gt_handSide[iou])
+        losses_side = self.h_head.losses(pred_h, gt_handSide[iou]) if torch.all(gt_grasp[iou].eq(100)).item() is False else {"loss_hand_side": torch.tensor(0, device = pred_h.device)}
         assert pred_t.shape[0] == gt_touch[iou].shape[0]
-        losses_touch = self.t_head.losses(pred_t, gt_touch[iou])
+        losses_touch = self.t_head.losses(pred_t, gt_touch[iou]) if torch.all(gt_touch[iou].eq(100)).item() is False else {"loss_touch": torch.tensor(0, device = pred_t.device)}
 
         assert pred_g.shape[0] == gt_touch[iou].shape[0] 
-        losses_grasp = self.g_head.losses(pred_g, gt_grasp[iou])
+        losses_grasp = self.g_head.losses(pred_g, gt_grasp[iou]) if torch.all(gt_grasp[iou].eq(100)).item() is False else {"loss_grasp": torch.tensor(0, device = pred_t.device)}
 
         return losses_inter, losses_side, losses_touch, losses_grasp

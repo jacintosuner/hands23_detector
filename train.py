@@ -26,9 +26,10 @@ from detectron2.engine import DefaultTrainer, default_setup, hooks, launch
 from detectron2.evaluation import DatasetEvaluators
 from detectron2.modeling import GeneralizedRCNNWithTTA
 from detectron2.projects.point_rend import add_pointrend_config
+from hodetector.modeling import roi_heads
 
 from hodetector.data import register_ho_pascal_voc, hoMapper
-from evaluator import Hands23_Evaluator
+from hodetector.evaluation.evaluator import Hands23_Evaluator
 import argparse
 
 
@@ -93,7 +94,7 @@ def setup(args):
     """
     cfg = get_cfg()
     cfg.merge_from_file(args.config_file)
-    cfg.merge_from_list(args.opts)
+    # cfg.merge_from_list(args.opts)
 
     cfg.INPUT.RANDOM_FLIP = "none"
 
@@ -142,17 +143,21 @@ if __name__ == "__main__":
     parser.add_argument("--num_machines", type=int, default=1)
     parser.add_argument("--machine_rank", type=int, default=0)
     parser.add_argument("--dist_url", default="tcp://127.0.0.1:49629")
-    parser.add_argument("--config_file", default= "./faster_rcnn_X_101_32x8d_FPN_3x_Hands23.yaml")
+    parser.add_argument("--config_file", default= "faster_rcnn_X_101_32x8d_FPN_3x_Hands23.yaml")
     parser.add_argument("--data_root", default="./data/hands23_data_coco")
     parser.add_argument("--output_dir", default= "./model_outputs")
     args = parser.parse_args()
 
     print("Command Line Args:", args)
 
+    # directory for images
     _datasets_root = args.data_root
 
+    # directory for annotation file in .json format
+    annotation_root = '/data/hands23_data_coco/'
+
     for d in ["TRAIN", "VAL"]:
-        register_ho_pascal_voc(name=f'Hands23_{d}', dirname=_datasets_root, year=2007, split=d, json_file=os.path.join("annotations", d.lower()+".json"), class_names=["hand", "firstobject", "secondobject"])
+        register_ho_pascal_voc(name=f'Hands23_{d}', dirname=_datasets_root, year=2007, split=d, json_file=os.path.join(annotation_root,"annotations", d.lower()+".json"), class_names=["hand", "firstobject", "secondobject"])
         MetadataCatalog.get(f'Hands23_{d}').set(evaluator_type='coco')
     
     launch(

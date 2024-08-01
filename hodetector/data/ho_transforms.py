@@ -64,7 +64,7 @@ def annotations_to_instances(annos, image_size, mask_format="polygon", file_name
     contact_state = [torch.tensor(obj["isincontact"]) for obj in annos]
     target.gt_contactState = torch.stack(contact_state, dim=0)
     
-    touch = [torch.tensor(obj["tooltype"]) for obj in annos]
+    touch = [torch.tensor(obj["touch"]) for obj in annos]
     target.gt_touch = torch.stack(touch, dim=0)
 
     grasp = [torch.tensor(obj["grasptype"]) for obj in annos]
