@@ -173,7 +173,7 @@ def calculate_center(bb):
 
 
 
-def vis_per_image(im, preds, filename, masks_dir, font_path='./times_b.ttf', use_simple=False):
+def vis_per_image(im, preds, filename, masks_dir, font_path='./utils/times_b.ttf', use_simple=False):
     '''Given im and its preds, plot preds on im using PIL which has the opacity effect.
     '''
 
