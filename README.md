@@ -13,7 +13,7 @@ conda create -n hands23  python=3.10
 conda activate hands23
 conda install pytorch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0 pytorch-cuda=11.8 -c pytorch -c nvidia
 python -m pip install 'git+https://github.com/facebookresearch/detectron2.git'
-pip install opencv-python parso 
+pip install opencv-python parso tqdm pillow==9.5.0
 ```
 
 ## Pre-trained model weights:
