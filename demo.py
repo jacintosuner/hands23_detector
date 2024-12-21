@@ -254,9 +254,10 @@ def main():
     parser.add_argument("--obj_rela", type=float, default=0.7)
   
     parser.add_argument("--model_weights", default=f"./model_weights/model_hands23.pth")
-    parser.add_argument("--data_dir", default = 'demo_example/example_images/')
+    parser.add_argument("--images_dir", default = 'demo_example/example_images/')
+    parser.add_argument("--video_path", default=None)
     parser.add_argument("--save_dir", default="results/demo")
-    parser.add_argument("--save_img", type=bool,  default = True)
+    parser.add_argument("--save_img", action='store_true')
     parser.add_argument("--image_list_txt", default=None)
     parser.add_argument("--config_file", default="./faster_rcnn_X_101_32x8d_FPN_3x_Hands23.yaml")
     args = parser.parse_args()
@@ -265,6 +266,56 @@ def main():
     cfg = set_cfg(args)
     
     predictor = DefaultPredictor(cfg)
+
+    # outputs
+    save_dir = args.save_dir
+    save_mask_dir = f"{save_dir}/masks" 
+    save_img = args.save_img 
+    os.makedirs(save_dir, exist_ok=True)
+    if save_img:
+        os.makedirs(save_mask_dir, exist_ok=True)
+    
+
+    # save results
+    res = {}
+    res["save_dir"] = save_dir
+    res["images"] = []
+    json_path = os.path.join(save_dir, "result.json")
+
+    if args.video_path is not None:
+        cap = cv2.VideoCapture(args.video_path)
+        frame_idx = 0
+        while True:
+            ret, im = cap.read()
+            if not ret:
+                break
+            print(f'Processing frame: {frame_idx}')
+            
+            # record frame res
+            frame = {}
+            frame["file_name"] = f'{frame_idx}'
+            frame["predictions"] = []
+
+            # save masks and vis
+            hand_lists = deal_output(im=im, predictor=predictor)
+
+            for hands in hand_lists:
+                if save_img:
+                    hands.save_masks(save_dir, im, f'{frame_idx}')
+                frame['predictions'].append(hands.get_json())
+
+            # vis and save
+            if save_img:
+                im = vis_per_image(im, frame['predictions'], f'{frame_idx}.png', save_mask_dir, use_simple=False)
+                save_path = os.path.join(save_dir, f'{frame_idx}.png')
+                im.save(save_path)
+
+            res["images"].append(frame)
+            frame_idx += 1
+
+        f = open(json_path, 'w')
+        json.dump(res, f, indent=4)
+        return
     
     # inputs
     print(f' a folder of images...')
@@ -273,20 +324,6 @@ def main():
         images = f.readlines()
     else:
         images = [x.replace(args.data_dir, '') for x in glob.glob(f'{args.data_dir}/*')]
-
-    # outputs
-    save_dir = args.save_dir
-    save_mask_dir = f"{save_dir}/masks" 
-    os.makedirs(save_dir, exist_ok=True)
-    os.makedirs(save_mask_dir, exist_ok=True)
-
-    save_img = args.save_img 
-
-    # save results
-    res = {}
-    res["save_dir"] = save_dir
-    res["images"] = []
-    json_path = os.path.join(save_dir, "result.json")
 
     # loop
     for test_img in tqdm(images):
