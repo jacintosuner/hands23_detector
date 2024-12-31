@@ -289,7 +289,7 @@ def main():
             ret, im = cap.read()
             if not ret:
                 break
-            print(f'Processing frame: {frame_idx}')
+            print(f'Processing frame: {frame_idx}', end='\r')
             
             # record frame res
             frame = {}
@@ -328,7 +328,7 @@ def main():
     # loop
     for test_img in tqdm(images):
         test_img = test_img.strip("\n")
-        print(f'Processing: {test_img}')
+        tqdm.write(f'Processing: {test_img}')
         if os.path.exists(os.path.join(args.data_dir, test_img)) is False:
             print(os.path.join(args.data_dir, test_img))
             pdb.set_trace()
